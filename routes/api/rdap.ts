@@ -1,5 +1,36 @@
 import { define } from "../../utils.ts";
 
+// Load IANA RDAP bootstrap data
+interface BootstrapData {
+  services: [[string[], string[]]];
+}
+
+let tldToEndpoint: Map<string, string> | null = null;
+
+async function loadBootstrap(): Promise<Map<string, string>> {
+  if (tldToEndpoint) return tldToEndpoint;
+
+  const bootstrapPath = new URL(
+    "../../resources/data.iana.org/rdap/dns.json",
+    import.meta.url,
+  );
+  const data: BootstrapData = JSON.parse(
+    await Deno.readTextFile(bootstrapPath),
+  );
+
+  tldToEndpoint = new Map();
+  for (const [tlds, endpoints] of data.services) {
+    // Use first endpoint (prefer HTTPS)
+    const endpoint = endpoints.find((e) => e.startsWith("https://")) ||
+      endpoints[0];
+    for (const tld of tlds) {
+      tldToEndpoint.set(tld.toLowerCase(), endpoint);
+    }
+  }
+
+  return tldToEndpoint;
+}
+
 interface RdapEntity {
   roles?: string[];
   publicIds?: Array<{ type: string; identifier: string }>;
@@ -48,12 +79,19 @@ function getTld(domain: string): string | null {
   return parts[parts.length - 1];
 }
 
-function getRdapUrl(domain: string): string | null {
+async function getRdapUrl(
+  domain: string,
+): Promise<{ url: string; endpoint: string } | null> {
   const tld = getTld(domain);
-  if (tld === "com" || tld === "net") {
-    return `https://rdap.verisign.com/${tld}/v1/domain/${domain}`;
-  }
-  return null;
+  if (!tld) return null;
+
+  const endpoints = await loadBootstrap();
+  const endpoint = endpoints.get(tld);
+  if (!endpoint) return null;
+
+  // Build the RDAP URL - endpoint already has trailing slash
+  const url = `${endpoint}domain/${domain}`;
+  return { url, endpoint };
 }
 
 function extractRegistrar(entities?: RdapEntity[]): string | null {
@@ -111,19 +149,20 @@ export const handler = define.handlers({
       );
     }
 
-    const rdapUrl = getRdapUrl(domain);
-    if (!rdapUrl) {
+    const rdapResult = await getRdapUrl(domain);
+    if (!rdapResult) {
       const tld = getTld(domain);
       return Response.json(
         {
           success: false,
           error:
-            `TLD ".${tld}" is not supported. Only .com and .net domains are supported via Verisign RDAP.`,
+            `TLD ".${tld}" is not supported. No RDAP endpoint found in IANA bootstrap registry.`,
         },
         { status: 400 },
       );
     }
 
+    const { url: rdapUrl, endpoint: rdapEndpoint } = rdapResult;
     const startTime = performance.now();
 
     try {
@@ -160,6 +199,7 @@ export const handler = define.handlers({
         handle: data.handle || null,
         status: data.status || [],
         queryTime,
+        rdapServer: rdapEndpoint,
         events: {
           registration: null as string | null,
           expiration: null as string | null,

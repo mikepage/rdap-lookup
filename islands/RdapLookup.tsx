@@ -7,6 +7,7 @@ interface RdapResult {
   handle: string | null;
   status: string[];
   queryTime: number;
+  rdapServer: string;
   events: {
     registration: string | null;
     expiration: string | null;
@@ -157,7 +158,7 @@ export default function RdapLookup() {
             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
           />
           <p class="text-xs text-gray-500 mt-1">
-            Supports .com and .net domains via Verisign RDAP
+            Supports all TLDs with RDAP endpoints via IANA bootstrap registry
           </p>
         </div>
 
@@ -222,8 +223,12 @@ export default function RdapLookup() {
               )}
             </div>
 
-            <div class="text-sm text-gray-500 mt-4">
-              Query Time: {result.value.queryTime}ms
+            <div class="text-sm text-gray-500 mt-4 space-y-1">
+              <div>Query Time: {result.value.queryTime}ms</div>
+              <div>
+                RDAP Server:{" "}
+                <span class="font-mono text-xs">{result.value.rdapServer}</span>
+              </div>
             </div>
           </div>
 
@@ -382,8 +387,8 @@ export default function RdapLookup() {
               <li>Built-in support for pagination</li>
             </ul>
             <p class="text-gray-500 text-xs mt-4">
-              This tool uses Verisign's RDAP service for .com and .net domain
-              lookups.
+              This tool uses the IANA RDAP bootstrap registry to find the
+              appropriate RDAP server for any supported TLD.
             </p>
           </div>
         </div>

@@ -1,22 +1,17 @@
 import { define } from "../../utils.ts";
+import dnsBootstrap from "../../resources/data.iana.org/rdap/dns.json" with { type: "json" };
 
-// Load IANA RDAP bootstrap data
+// IANA RDAP bootstrap data (bundled at build time)
 interface BootstrapData {
-  services: [[string[], string[]]];
+  services: [string[], string[]][];
 }
 
 let tldToEndpoint: Map<string, string> | null = null;
 
-async function loadBootstrap(): Promise<Map<string, string>> {
+function loadBootstrap(): Map<string, string> {
   if (tldToEndpoint) return tldToEndpoint;
 
-  const bootstrapPath = new URL(
-    "../../resources/data.iana.org/rdap/dns.json",
-    import.meta.url,
-  );
-  const data: BootstrapData = JSON.parse(
-    await Deno.readTextFile(bootstrapPath),
-  );
+  const data = dnsBootstrap as unknown as BootstrapData;
 
   tldToEndpoint = new Map();
   for (const [tlds, endpoints] of data.services) {
@@ -79,13 +74,13 @@ function getTld(domain: string): string | null {
   return parts[parts.length - 1];
 }
 
-async function getRdapUrl(
+function getRdapUrl(
   domain: string,
-): Promise<{ url: string; endpoint: string } | null> {
+): { url: string; endpoint: string } | null {
   const tld = getTld(domain);
   if (!tld) return null;
 
-  const endpoints = await loadBootstrap();
+  const endpoints = loadBootstrap();
   const endpoint = endpoints.get(tld);
   if (!endpoint) return null;
 
@@ -149,7 +144,7 @@ export const handler = define.handlers({
       );
     }
 
-    const rdapResult = await getRdapUrl(domain);
+    const rdapResult = getRdapUrl(domain);
     if (!rdapResult) {
       const tld = getTld(domain);
       return Response.json(

@@ -14,7 +14,11 @@ interface RdapResult {
     lastChanged: string | null;
     lastUpdateOfRdapDatabase: string | null;
   };
-  nameservers: string[];
+  nameservers: Array<{
+    name: string;
+    ipv4: string[];
+    ipv6: string[];
+  }>;
   registrar: string | null;
   ianaId: string | null;
   dnssec: {
@@ -298,13 +302,27 @@ export default function RdapLookup() {
               <h3 class="text-lg font-semibold text-gray-800 mb-4">
                 Nameservers
               </h3>
-              <div class="space-y-2">
+              <div class="space-y-3">
                 {result.value.nameservers.map((ns, index) => (
                   <div
                     key={index}
-                    class="font-mono text-sm bg-blue-50 text-blue-800 px-3 py-2 rounded-md border border-blue-200"
+                    class="bg-blue-50 px-3 py-2 rounded-md border border-blue-200"
                   >
-                    {ns}
+                    <div class="font-mono text-sm text-blue-800">{ns.name}</div>
+                    {(ns.ipv4.length > 0 || ns.ipv6.length > 0) && (
+                      <div class="mt-1 text-xs text-gray-600 space-y-0.5">
+                        {ns.ipv4.map((ip, i) => (
+                          <div key={`v4-${i}`} class="font-mono">
+                            <span class="text-gray-400">IPv4:</span> {ip}
+                          </div>
+                        ))}
+                        {ns.ipv6.map((ip, i) => (
+                          <div key={`v6-${i}`} class="font-mono">
+                            <span class="text-gray-400">IPv6:</span> {ip}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

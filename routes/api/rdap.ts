@@ -43,6 +43,10 @@ interface RdapEvent {
 interface RdapNameserver {
   ldhName: string;
   objectClassName: string;
+  ipAddresses?: {
+    v4?: string[];
+    v6?: string[];
+  };
 }
 
 interface RdapResponse {
@@ -201,7 +205,11 @@ export const handler = define.handlers({
           lastChanged: null as string | null,
           lastUpdateOfRdapDatabase: null as string | null,
         },
-        nameservers: data.nameservers?.map((ns) => ns.ldhName) || [],
+        nameservers: data.nameservers?.map((ns) => ({
+          name: ns.ldhName,
+          ipv4: ns.ipAddresses?.v4 || [],
+          ipv6: ns.ipAddresses?.v6 || [],
+        })) || [],
         registrar: extractRegistrar(data.entities),
         ianaId: extractIanaId(data.entities),
         dnssec: {
